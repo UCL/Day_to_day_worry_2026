@@ -27,7 +27,7 @@ effects.
 
 # Missingness Rate
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->![](S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
 | n_total | n_complete | n_incomplete | pct_incomplete | pct_complete |
 |--------:|-----------:|-------------:|---------------:|-------------:|
@@ -96,7 +96,7 @@ ggplot(missingness_by_day, aes(x = day_count)) +
        title = "Missingness Over Time (Survey Fatigue Test)")
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ### Missingness ~ Participant?
 
@@ -169,7 +169,7 @@ ggplot(missingness_by_person, aes(x = pct_missing_worry,
   theme_minimal()
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ### Missingness Co-occurrence?
 
@@ -193,7 +193,7 @@ gg_miss_upset(data_set_b4mice %>%
               filter(day_count > 0))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](S1_MAR_explore_documentation_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ### Outcome Missing ~ Predictors
 
