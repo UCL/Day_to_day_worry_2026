@@ -1,0 +1,444 @@
+---
+title: "Supplementary Material: Derived Variables"
+subtitle: "Calculation of derived variables across imputed datasets"
+author: Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering,
+  Chris Eccleston, Edmund Keogh, Nadia Bianchi-Berthouze,
+  Amanda C de C Williams
+date: "2026-02-07"
+output:
+  github_document:
+    toc: true
+---
+```{r setup, include=FALSE}
+# Data manipulation
+library(dplyr)
+library(tidyr)
+#library(lubridate)
+#library(stringr)
+library(readr)
+
+# Time series handling
+library(zoo)    # Irregular time series: we use the rollmean() function
+library(purrr)  # Functional programming: for the use of map() function
+
+# Mixed models and imputation
+library(mice)        # Multiple imputation via chained equations
+library(miceadds)    # Mice extensions
+library(micemd)      # Mice for multilevel data
+#library(broom.mixed) # Tidy mixed model output
+#library(lme4)        # Linear mixed-effects models
+#library(performance) # Model diagnostics (ICC, R^2, etc.)
+#library(emmeans)     # Estimated marginal means
+
+# Power analysis
+#library(simr)  # Simulation-based power for GLMMs
+
+# Visualization
+library(ggplot2)
+#library(patchwork)  # Multi-plot composition
+#library(naniar)     # Missing data visualization
+library(kableExtra) # Table formatting
+```
+
+# Summary & Logic
+
+This documentation describe the construction of all derived variables used in our analyses
+of daily pain interference predictions. These variables capture temporal trends, 
+deviations from trends, and prediction errors that we use in our models testing Bayesian 
+learning processes in chronic pain. All derived variables are calculated within 
+each of the 28 imputed datasets to propagate uncertainty from the imputation 
+process into subsequent analyses.
+
+All derived variable preseve temporal ordering: all predictors use information only from past days (lagged variables) to preserve the causal chain of events. 
+
+When calculating our 3-days rolling means we applied an "adaptive fallback logic" to handle early study days (e.g. Day 0, 1) when fewer observations are available. This choice is pragramtic and allows early study days to use shorter time windows to calculate rolling means rather than discarding observations.  We consider this a "graceful" degradation strategy that maximise the information available in the face of this structural missingness in the rolling mean term. 
+
+We also respected the multilevel structure of the data: where relevant variables are calculated separately for each participant to prevent cross-participant contamination (rolling means are calculated withing parcitipants). Finally, we respected the structure of the MIDS (multiply imputed dataset) object and calculation are executed within each dataset. This is critical to preseve the MIDS structure that is required for Rubin's pooling rules.
+
+#Methods
+
+Derived variables were calculated on the multiply imputed day-level dataset (imp_1) containing:
+
+* 28 imputed datasets (m = 28)
+* Daily assessments nested within participants
+* Complete cases for demographics (Age, Sex, Education)
+* Imputed values for morning assessments (worry, pain, mood, stress) and evening interference
+
+
+
+```{r echo=FALSE}
+# importing the MIDS array
+
+imp_1<-readRDS("c:/Documents and Settings/d.vitali/Desktop/Github/CRIISP-WP6/Data/imputation_m28_12_05_25.rds") 
+```
+
+##Generate derived predictors in all imputed datasets for pain and mood trends
+
+```{r echo=FALSE, include=FALSE}
+# Initialize a list to store results
+imputed_datasets_with_trends <- vector("list", 28)
+
+# https://stefvanbuuren.name/fimd/sec-knowledge.html
+
+calculate_derived_vars <- function(data) {
+  # Store original row order for mice compatibility
+  # mice **requires** row order alignment between original and imputed datasets
+  data <- data %>%
+    mutate(original_row = row_number())
+  
+  ## this step does all calculations requiring temporal ordering
+  result <- data %>%
+    # Group by both alias AND .imp to prevent cross-imputation bleeding of the calculations
+    group_by(alias, .imp) %>%
+    # Sort by day within each group to ensure temporal sequence
+    arrange(day_count, .by_group = TRUE) %>%
+    mutate(
+      # Pain trend calculations using zoo::rollmean  (rolling mean at time t-1)
+      #  * align="right": Rolling window includes current day plus 2 prior days for 3-day mean
+      #  * lag(..., 1): Shifts entire series back 1 day, this ensures trend at time t reflects days t-3, t-2, t-1)
+      #  * fill=NA: First 1-2 days have insufficient history, yielding NA for incomplete windows
+      pain_trend_1d = lag(daily_avg_pain, 1),
+      pain_trend_2d = lag(zoo::rollmean(daily_avg_pain, 2, fill = NA, align = "right"), 1),
+      pain_trend_3d_raw = lag(zoo::rollmean(daily_avg_pain, 3, fill = NA, align = "right"), 1),
+     
+      
+      # Adaptive pain trend selection
+      # If ≥3 days available → use 3‑day mean.
+        # Else if ≥2 days available → use 2‑day mean.
+        # Else if ≥1 day available → use previous day only.
+        # Else NA.
+      pain_trend_3d = case_when(
+        !is.na(pain_trend_3d_raw) ~ pain_trend_3d_raw, # Use 3-day mean when available (day 3+)
+        !is.na(pain_trend_2d) ~ pain_trend_2d,         # Use 2-day mean on day 
+        !is.na(pain_trend_1d) ~ pain_trend_1d,         # Use 1-day value on day 1
+        TRUE ~ NA_real_                                # Day 0 has no history
+      ),
+      
+      # stress trend calculations using zoo::rollmean  (rolling mean at time t-1)
+      # Identical logic to pain trends
+      stress_trend_1d = lag(daily_avg_stress, 1),
+      stress_trend_2d = lag(zoo::rollmean(daily_avg_stress, 2, fill = NA, align = "right"), 1),
+      stress_trend_3d_raw = lag(zoo::rollmean(daily_avg_stress, 3, fill = NA, align = "right"), 1),
+      
+      # Adaptive stress trend selection
+      stress_trend_3d = case_when(
+        !is.na(stress_trend_3d_raw) ~ stress_trend_3d_raw,
+        !is.na(stress_trend_2d) ~ stress_trend_2d,
+        !is.na(stress_trend_1d) ~ stress_trend_1d,
+        TRUE ~ NA_real_
+      ),
+      
+      # mood trend calculations using zoo::rollmean (rolling mean at time t-1)
+      # Identical logic to pain trends
+      mood_trend_1d = lag(daily_avg_mood, 1),
+      mood_trend_2d = lag(zoo::rollmean(daily_avg_mood, 2, fill = NA, align = "right"), 1),
+      mood_trend_3d_raw = lag(zoo::rollmean(daily_avg_mood, 3, fill = NA, align = "right"), 1),
+      
+      # Adaptive mood trend selection 
+      mood_trend_3d = case_when(
+        !is.na(mood_trend_3d_raw) ~ mood_trend_3d_raw,
+        !is.na(mood_trend_2d) ~ mood_trend_2d,
+        !is.na(mood_trend_1d) ~ mood_trend_1d,
+        TRUE ~ NA_real_
+      ),
+      
+     
+      
+      # Deviation calculations (at time t)
+      # Deviations capture acute fluctuations from recent trends
+      # Positive = worse than trend; Negative = better than trend
+      pain_deviation_from_trend = morning_pain - pain_trend_3d,
+      stress_deviation_from_trend = morning_stress - stress_trend_3d,
+      mood_deviation_from_trend = morning_mood - mood_trend_3d,
+
+      #  WORRY-OUTCOME ERROR CALCULATION (at time t) ===
+      # Error = Morning prediction (worry) minus evening outcome
+      # Only defined when both worry and interference are observed
+      # Conditional calculation prevents treating missing outcomes as "zero"
+       worry_outcome_error = ifelse(
+        !is.na(interf_worry) & !is.na(evening_interference),
+        interf_worry - evening_interference,
+        NA_real_
+      ),
+      
+      ## lagged learning variables (t-1)
+      lagged_worry_outcome_error = lag(worry_outcome_error, 1),
+      lagged_interf_worry = lag(interf_worry, 1),
+      
+      ## lagged confounders variables (t-1)
+      lagged_pain_deviation_from_trend = lag(pain_deviation_from_trend,1),
+      lagged_stress_deviation_from_trend = lag(stress_deviation_from_trend,1),
+      lagged_mood_deviation_from_trend = lag(mood_deviation_from_trend,1),
+      lagged_evening_interference = lag(evening_interference, 1),
+
+      
+      ## lagged confounding trend variables (t-2)
+      lagged_pain_trend_3d = lag(pain_trend_3d,1),
+      lagged_mood_trend_3d = lag(mood_trend_3d,1),
+      lagged_stress_trend_3d = lag(stress_trend_3d,1),
+
+    ) %>%
+    ungroup() %>%
+    # Restore original row order for mice compatibility
+    arrange(original_row) %>%
+    # Clean up intermediate variables
+    select(-ends_with("_1d"), 
+           -ends_with("_2d"), 
+           -pain_trend_3d_raw,
+           -stress_trend_3d_raw, 
+           -mood_trend_3d_raw, 
+           -original_row)
+  
+  return(result)
+}
+
+# The following creates a single dataframe with:  
+        # an .imp column (0 = original incomplete data, 1-28 = imputed datasets) 
+        # an .id column (row identifier)
+# this way we can vectorized operations across all imputations simultaneously.
+long_data <- complete(imp_1, 
+                      action = "long",
+                      include = TRUE)
+
+long_data$Age_c <- long_data$Age - mean(long_data$Age, na.rm = TRUE)
+
+
+# Apply "calculate_derived_vars()":
+  # In this function (see above its definition) calculations are grouped by both 
+  # alias (participant) AND .imp (imputation number). This ensures:
+  #  * No leakage of information across participants
+  #  * No leakage of information across imputations
+  #  * Preserves temporal ordering within each participant-imputation's combination
+processed_long_data <- long_data %>%
+  calculate_derived_vars()
+
+# This function converts imputed data stored in long format into an object of class mids. 
+# The original incomplete dataset needs to be available so that we know where the missing data are. 
+# The as.mids function helps converting back operations applied to the imputed data back in a mids object. 
+imp_1_with_trends <- as.mids(processed_long_data, 
+                            .imp = ".imp",  # indicating the imputation index. Consecutive integers between 0 and "m".
+                            .id = ".id")  # The .id column in is a row-level identifier that mice creates internally.
+                                          # this internal ".id" only coincides with alias in wide 1L imputation (e.g wide format)
+
+#saveRDS(imp_1_with_trends, "c:/Documents and Settings/d.vitali/Desktop/Github/CRIISP-WP6/Data/imp_1_with_trends_m28_12_05_25.rds")
+
+```
+
+
+## Imputation variance across key variables
+
+Here we use Rubin's pooling formulas to examine the distributions of our variable across imputations. These are not inferential estimates of population parameters, we are assessing the weight of the variance increased by our imputation
+
+Rubin ([1987](https://doi.org/10.1002/bimj.4710310118)) uses the fraction of missing information, $\lambda$, to define the severity of missing data. 
+
+$$\lambda = \frac{(1 + \frac{1}{m})B}{T}$$
+
+where $m$ is the number of imputations, $B$ is the between-imputation variance (the variance of the 28 means), and $T$ is the total variance combining within- and between-imputation components. and shows it can be interpreted as the proportion of total variance attributable to missingness; later summaries make this explicit.
+
+As $\lambda$ ration gets smaller (e.g < 0.10) we can say that imputation adds minimal uncertainty beyond the observed sample variability. As $\lambda$ increases (e.g. 0.10–0.30), imputation becomes a detectable contributor to the overal variance. As $\lambda$ exceeds .30 we can state that impact of missing data is substantial and that between-imputation variance is not a small nor negligible contributor to the overall variance $T$.
+```{r message=FALSE}
+# Summary variables
+vars <- c("evening_interference", 
+          "interf_worry", 
+          "worry_outcome_error",
+          "morning_mood", "morning_stress", "morning_pain", 
+          "pain_deviation_from_trend")
+
+# Extract stats from all imputations
+imp_stats <- map_dfr(1:imp_1_with_trends$m, function(i) {
+  dat <- complete(imp_1_with_trends, i)
+  dat %>%
+    summarise(
+      imputation = i,
+      across(all_of(vars), 
+             list(mean = ~mean(.x, na.rm = TRUE), 
+                  sd = ~sd(.x, na.rm = TRUE)), 
+             .names = "{.col}_{.fn}")
+    )
+})
+
+
+rubins_results <- tibble(variable = vars) %>%
+  mutate(
+    # Extract vectors of imputation-specific statistics
+    mean_vec = map(variable, ~imp_stats[[paste0(.x, "_mean")]]), # this is the vector of the sample means
+    sd_vec = map(variable, ~imp_stats[[paste0(.x, "_sd")]]),     # this is the vector of the sample SDs
+    
+    # Rubin's rules calculations
+    M = nrow(imp_stats),                                      # Number of imputations (28)
+    Q_mean = map_dbl(mean_vec, ~mean(.x, na.rm = TRUE)),      # Pooled mean across all 28 imputations
+    vars_within = map_dbl(sd_vec, ~mean(.x^2, na.rm = TRUE)), # Average within-imputation variance  (mean of SD^2)
+    B = map_dbl(mean_vec, ~var(.x, na.rm = TRUE)),            # variance of the 28 imputation-specific mean  
+                                                             
+                                                              # https://pmc.ncbi.nlm.nih.gov/articles/PMC3701793/
+    total_var = vars_within + (1 + 1/M) * B,                  # Total = variance combining both within- and between- 
+    pooled_se = sqrt(total_var),                              # Pooled standard deviation (this is descriptive SE, 
+                                                              #   not an inferential SE for mean estimates)
+    lambda = (B + B/M) / total_var,                            # Proportion of total variance attributable to imputation
+                                                              #   uncertainty rather than sampling variability.
+    `lambda %` = round(lambda *100,2)
+    
+  ) %>%
+  select(variable, Q_mean, pooled_se, vars_within, B, M, lambda, `lambda %`) %>%
+  mutate(across(c(Q_mean, pooled_se, vars_within, B, lambda), ~round(.x, 3)))
+
+kable(rubins_results)
+
+```
+
+Between-imputation variance is 0.02% of within-imputation variance. This suggests that
+the random variation (error) injected by the Monte Carlo imputation algorithm is negligible and
+contributes almost nothing to the uncertainty of the descriptive statistics above.
+
+
+## Correlations
+
+Here we separate within- and between-Person Correlations. This is because multilevel data often 
+violates the (ergodicity) assumption that between person patterns are equal to within person patterns.
+
+For example:
+* between-person: People with chronically higher pain may have chronically higher worry (stable trait)
+* Within-person: On days when someone's pain spikes above their personal average, worry could increase proportionally to this spike.
+
+To isolate within-person day-to-day associations, we person-mean center all variables. After centering, correlations reflect only how daily fluctuations co-vary within individuals.
+
+
+###  Within-person Correlations
+
+```{r message=FALSE}
+library(lme4)
+model_data<-complete(imp_1_with_trends, 1) %>% filter(day_count > 0) # filter out day_count = 0 (first day of data collection))
+
+# Within person Correlations (here we look at stable difference between ppl)
+
+    # we center variables using within person mean
+    # this is because we are doing a multilevel analysis and in this dataset
+    # variables vary between-person and within person.
+    # Raw correlations between variables assume "Ergodicity":
+    # (between-person pattern = within person pattern), which is most likely untenable.
+    # 
+    # Considering that we are interested in within-person correlations between key 
+    # variables we do not want between person differences to inflate or dilute 
+    # the within-person day-to-day correlation estimate.
+    # 
+
+# Q1 correlation matrix
+q1_vars <- model_data %>%
+  select(
+    evening_interference,
+    interf_worry,
+    pain_trend_3d,
+    morning_pain,
+    morning_mood,
+    morning_stress
+  ) %>% colnames
+
+q1_vars_centered <- model_data %>%
+  group_by(alias) %>%
+  mutate(
+    # By centering the variables (_wc) we remove between person variance leaving only
+    # within-person variance.
+    across(all_of(q1_vars), ~ . - mean(., na.rm = TRUE),  .names = "{.col}_wc"
+    )
+  ) %>%
+  ungroup()
+
+# Correlation of within-person deviations
+cor_q1 <- q1_vars_centered %>%
+  select(ends_with("_wc"), day_count) %>%
+  cor(use = "pairwise.complete.obs")
+
+#round(cor_q1, 3)
+
+# Q2 correlation matrix
+# Person-mean center all variables
+q2_vars <- model_data %>%
+  select(
+    interf_worry, 
+    morning_pain, 
+    morning_mood, 
+    morning_stress,
+    lagged_interf_worry, 
+    lagged_worry_outcome_error,
+    lagged_pain_trend_3d, 
+    lagged_mood_trend_3d, 
+    lagged_stress_trend_3d
+  ) %>% colnames
+
+q2_vars_centered <- model_data %>%
+  group_by(alias) %>%
+  mutate(
+    across(all_of(q2_vars), ~ . - mean(., na.rm = TRUE),  .names = "{.col}_wc"
+    )
+  ) %>%
+  ungroup()
+
+# Correlation of within-person deviations
+cor_q2 <- q2_vars_centered %>%
+  select(ends_with("_wc"), day_count) %>%
+  cor(use = "pairwise.complete.obs")
+
+#round(cor_q2, 3)
+
+
+
+library(corrplot)
+
+# Q1
+corrplot(cor_q1, method = "number", type = "upper", 
+         title = "Q1: Within person correlations for all variables considered",
+         tl.cex = 0.8, number.cex = 0.7,
+         mar = c(0,0,2,0))
+
+# Q2
+corrplot(cor_q2, method = "number", type = "upper",
+         title = "Q2: Within person correlation for all variables considered",
+         tl.cex = 0.8, number.cex = 0.7,
+         mar = c(0,0,2,0))
+```
+
+### Between-person Correlations
+
+```{r message=FALSE}
+# Create person-level dataset
+btw_person <- model_data %>%
+  group_by(alias) %>%
+  summarize(
+    Age = first(Age),  # Constant within person
+    mean_worry = mean(interf_worry, na.rm = TRUE),
+    mean_pain = mean(morning_pain, na.rm = TRUE),
+    mean_mood = mean(morning_mood, na.rm = TRUE),
+    mean_stress = mean(morning_stress, na.rm = TRUE),
+    mean_interference = mean(evening_interference, na.rm = TRUE),
+    # Q2 additional variables
+    mean_error = mean(worry_outcome_error, na.rm = TRUE),  
+    mean_lagged_error = mean(lagged_worry_outcome_error, na.rm = TRUE),
+    mean_lagged_worry = mean(lagged_interf_worry, na.rm = TRUE),
+    
+    # Confounders
+    mean_pain_trend = mean(pain_trend_3d, na.rm = TRUE),
+    mean_stress_trend = mean(stress_trend_3d, na.rm = TRUE),
+    mean_mood_trend = mean(mood_trend_3d, na.rm = TRUE),
+  ) %>% ungroup()
+
+# Correlation between-person (here we look at stable difference between ppl)
+cor_between <- btw_person %>%
+  select(Age, 
+         mean_worry,
+         mean_interference,
+         mean_error,
+         mean_lagged_error,
+         mean_lagged_worry,
+         mean_pain, mean_mood, mean_stress, 
+         mean_pain_trend,mean_stress_trend,mean_mood_trend
+         ) %>%
+  cor(use = "pairwise.complete.obs")
+
+#round(cor_between, 3)
+
+# Between persons plot
+corrplot(cor_between, method = "number", type = "upper",
+         title = "Between persons correlations",
+         tl.cex = 0.8, number.cex = 0.7,
+         mar = c(0,0,2,0))
+```

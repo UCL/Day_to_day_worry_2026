@@ -1,0 +1,325 @@
+---
+title: 'Supplementary Material: MAR assumptions'
+subtitle: Exploring the MAR assumption for Q1 and Q2 models
+author: Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering,
+  Chris Eccleston, Edmund Keogh, Nadia Bianchi-Berthouze,
+  Amanda C de C Williams
+date: "2026-02-07"
+output:
+  github_document:
+    toc: true
+---
+
+# SUMMARY & LOGIC:
+This code tests whether missing data meets Missing At Random (MAR) assumptions 
+required for multiple imputation.
+
+Strategy:
+
+1. Quantify overall missingness rates
+2. Test for systematic patterns:
+   - Survey fatigue (missingness ~ study day)
+   - Person effects (missingness ~ participant)
+   - Correlated missingness (variables missing together)
+   - Predictive relationships (observed predictors ~ missingness)*
+
+MAR requires: missingness can depend on observed data but not unobserved values.
+
+*Tests use logistic regression to check if observed morning variables predict 
+evening outcome missingness, controlling for person and time effects.
+
+
+```{r setup, include=FALSE}
+# Data manipulation
+library(dplyr)
+library(tidyr)
+#library(lubridate)
+#library(stringr)
+library(readr)
+
+# Time series handling
+#library(zoo)    # Irregular time series
+#library(purrr)  # Functional programming (map functions)
+
+# Mixed models and imputation
+#library(mice)        # Multiple imputation via chained equations
+#library(miceadds)    # Mice extensions
+#library(micemd)      # Mice for multilevel data
+#library(broom.mixed) # Tidy mixed model output
+#library(lme4)        # Linear mixed-effects models
+#library(performance) # Model diagnostics (ICC, R², etc.)
+#library(emmeans)     # Estimated marginal means
+
+# Power analysis
+#library(simr)  # Simulation-based power for GLMMs
+
+# Visualization
+library(ggplot2)
+#library(patchwork)  # Multi-plot composition
+library(naniar)     # Missing data visualization
+library(kableExtra) # Table formatting
+```
+
+```{r include=FALSE}
+# Load pre-processed day-level EMA data
+data_set_b4mice <- readRDS("c:/Documents and Settings/d.vitali/Desktop/Github/CRIISP-WP6/Data/day_level_data_4mice.rds")
+```
+
+# Missingness Rate
+
+```{r echo=FALSE}
+# Define variables used in Q1/Q2 models
+model_vars <- c("alias",                      # Participant ID
+                "evening_interference",        # Outcome: actual interference
+                "interf_worry",               # Predictor: worry about interference
+                "morning_mood", "morning_pain", "morning_stress",  # Confounders
+                "daily_avg_stress", "daily_avg_pain", "daily_avg_mood",
+                "Age",
+                "day_count")                  # Study day
+
+# Visual missingness patterns by participant
+vis_miss(data_set_b4mice %>% 
+           select(all_of(model_vars)) %>% 
+           filter(day_count > 0) %>%  # Exclude day 0 (equipment induction)
+           group_by(alias) %>% 
+           arrange(day_count)) + 
+  facet_wrap(~ alias) + 
+  labs(caption = "Missingness: count by day, facets show detail across Participants") 
+
+# Overall missingness pattern
+vis_miss(data_set_b4mice %>% 
+           select(all_of(model_vars)) %>% 
+           filter(day_count > 0) %>%
+           arrange(day_count)) +
+  labs(caption = "Missingness: count by day") 
+
+# Complete case analysis summary
+# Rule of thumb: ≥80% complete cases supports ~5 imputations (White et al. 2010)
+data_set_b4mice %>%
+  select(all_of(model_vars)) %>% 
+  filter(day_count > 0) %>%
+  mutate(complete_case = complete.cases(.)) %>%
+  summarise(
+    n_total = n(),
+    n_complete = sum(complete_case),
+    n_incomplete = sum(!complete_case),
+    pct_incomplete = (n_incomplete/n_total)*100,
+    pct_complete = (n_complete/n_total)*100
+  ) %>% kable()
+```
+
+# Summary Table
+
+```{r}
+# Variable-level missingness rates
+missingness_summary <- data_set_b4mice %>%
+  select(all_of(model_vars)) %>% 
+  filter(day_count > 0) %>%
+  summarise(across(everything(), ~mean(is.na(.)) * 100)) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "pct_missing") %>%
+  arrange(desc(pct_missing))
+
+missingness_summary %>% kable()
+```
+
+## MAR Assumption Tests
+
+
+### Missingness ~ time
+
+Here we explore temporal dropout patterns. The expectation under MCAR is that 
+missingness rates will be stable over time. We examine this chart looking for:
+
+1. Upward trends in % missing as study day increases (survey fatigue)
+2. Systematic differences between early vs late study periods
+
+Under MCAR, we would expect to see no clear trends in either case, with only 
+random day-to-day fluctuation in missingness rates.
+
+```{r}
+# Test 1: Survey fatigue (missingness increases over time?)
+missingness_by_day <- data_set_b4mice %>%
+  select(all_of(model_vars)) %>% 
+  filter(day_count > 0) %>%
+  group_by(day_count) %>%
+  summarise(
+    pct_missing_worry = mean(is.na(interf_worry)) * 100,
+    pct_missing_interference = mean(is.na(evening_interference)) * 100,
+    pct_missing_pain = mean(is.na(morning_pain)) * 100
+  )
+
+# Visualize temporal trends
+ggplot(missingness_by_day, aes(x = day_count)) +
+  geom_line(aes(y = pct_missing_worry, color = "Worry")) +
+  geom_line(aes(y = pct_missing_interference, color = "Interference")) +
+  geom_line(aes(y = pct_missing_pain, color = "Pain")) +
+  labs(x = "Study Day", y = "% Missing", 
+       title = "Missingness Over Time (Survey Fatigue Test)")
+```
+
+### Missingness ~ Participant?
+
+This code examines person-level heterogeneity in missingness patterns to assess whether certain participants systematically provide less data. 
+
+Scatter plot shows relationship between worry and interference missingness:
+
+* Points on diagonal = participants miss both equally (whole survey sessions skipped)
+* Points off diagonal = differential missingness (one variable more likely missing than the other)
+
+under MCAR we would expect a random scatter around diagonal and no systematic pattern of morning worry vs evening interference prevalence.
+
+In the next steps glm() will test whether the levels of worry detected in the morning predict the report of interference being missingness on the same evening.
+
+```{r}
+# Test 2: Person-level differences in compliance
+missingness_by_person <- data_set_b4mice %>%
+  select(all_of(model_vars)) %>% 
+  filter(day_count > 0) %>%
+  group_by(alias) %>%
+  summarise(
+    n_days = n(),
+    pct_missing_worry = mean(is.na(interf_worry)) * 100,
+    pct_missing_interference = mean(is.na(evening_interference)) * 100,
+    pct_any_missing = mean(is.na(interf_worry) | is.na(evening_interference)) * 100
+  ) %>%
+  arrange(desc(pct_any_missing))
+
+missingness_by_person %>% kable()
+
+# Correlation between worry and interference missingness
+ggplot(missingness_by_person, aes(x = pct_missing_worry, 
+                                   y = pct_missing_interference)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_text(aes(label = alias), vjust = -0.5, size = 3) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+  labs(x = "% Missing Worry",
+       y = "% Missing Interference",
+       title = "Relationship Between Missingness Types (Person-Level)") +
+  theme_minimal()
+```
+
+### Missingness Co-occurrence?
+
+This UpSet plot shows which combinations of variables tend to be missing together. 
+Understanding co-occurrence patterns helps distinguish between item-level skipping 
+(participants selectively skip certain questions) versus survey-level dropout 
+(participants miss entire survey sessions).
+
+Note: Morning mood, pain, and stress are always asked in the same morning survey, 
+so these three variables will always be missing together when the morning survey is 
+skipped. Similarly, evening interference and morning worry come from different survey 
+sessions (evening and morning respectively), so their co-occurrence patterns reflect 
+between-survey rather than within-survey missingness.
+
+```{r warning=F}
+# Test 3: Which variables tend to be missing together?
+# UpSet plot shows combinations of missing variables
+gg_miss_upset(data_set_b4mice %>%
+              select(all_of(model_vars)) %>%
+              filter(day_count > 0))
+```
+
+### Outcome Missing ~ Predictors
+
+This section tests the core MAR assumption: whether observed variables predict 
+missingness patterns. We create binary indicators for whether each key variable 
+is missing, then use logistic regression to test if observed morning states 
+predict the probability of missing data.
+
+**MAR vs MCAR distinction**: 
+- MCAR requires missingness to be completely independent of all variables (observed and unobserved)
+- MAR allows missingness to depend on observed data, but not on the unobserved values themselves
+
+This means that if data is MAR missingness depends on observed data (lagged/same-day observables), 
+but not on unobserved/missing values conditional on those observables.
+
+
+```{r}
+# Create binary missingness indicators for logistic regression
+Missngness_glm_DF <- data_set_b4mice %>%
+              select(all_of(model_vars)) %>%
+              filter(day_count > 0) %>%
+              mutate(interference_missing = is.na(evening_interference),
+                     worry_missing = is.na(interf_worry))
+```
+
+#### Interference Missing ~ Observed Predictors
+
+*Test:**Does morning worry predict evening interference being missing?**
+
+This tests whether morning worry (net of pain/mood/stress) predicts evening 
+interference missingness. 
+
+* Significant worry → supports MAR (high morning worry → skip evening → imputation conditions on observed worry and other morning states).
+* Non-significant → supports MCAR.
+
+
+```{r}
+# Test 4a: Do observed morning states predict evening interference missingness?
+# MAR allows this; MCAR would require no relationship
+missingness_model_1 <- glm(
+  interference_missing ~ morning_pain + morning_stress + 
+    morning_mood + interf_worry +day_count ,
+  family = binomial,
+  data = Missngness_glm_DF
+)
+
+summary(missingness_model_1)
+
+
+
+```
+
+#### Worry Missing ~ Observed Predictors
+
+**Do observed lagged states predict morning worry data being missing?**
+This tests whether previous states predict morning survey non-completion (which 
+includes worry). 
+
+* If lagged worry/pain/mood/stress predict missingness → supports for MAR imputation can succesfully condition on them). 
+* If lagged worry/pain/mood/stress do not predict missingness → supports for MCAR. 
+
+```{r}
+# Test 4b: Do observed morning states predict worry missingness?
+Missingness_model_2b <- glm(
+  worry_missing ~ lag(interf_worry) + 
+    lag(evening_interference) + 
+    lag(daily_avg_pain) + lag(daily_avg_stress) + lag(daily_avg_mood) + 
+    day_count,
+  family = binomial,
+  data = Missngness_glm_DF
+)
+
+
+summary(Missingness_model_2b)
+```
+
+
+Lagged prior-day worry significantly predicted higher morning worry missingness (OR=1.35, p=.008), while prior pain marginally predicted lower missingness (OR=0.79, p=.061). This supports MAR: imputation conditions on these observed lagged states to adjust for systematic patterns
+
+
+## MAR-based sensitivity analysis
+[Text copied from Q2 supplementary to complement the exploration, please see Q2 supplementary for more details]
+
+Our MAR diagnostics revealed that lagged worry (t-1) significantly predicted 
+current worry missingness ($\beta=0.30$, p=.008), suggesting imputation models should 
+ideally condition on this predictor. To assess robustness to this MAR pattern, 
+we compared Q2 model estimates under two imputation strategies:
+
+* **Model A**: Two-level PMM without lagged worry predictor (primary specification)
+* **Model B**: Two-level PMM including lagged worry predictor (MAR-informed)
+
+|term                       | est_A|  se_A|  lwr_A| upr_A|   | est_B|  se_B|  lwr_B| upr_B|
+|:--------------------------|-----:|-----:|------:|-----:|:-:|-----:|-----:|------:|-----:|
+|(Intercept)                |  1.37| 0.862| -0.325| 3.065|   |  1.35| 0.935| -0.487| 3.188|
+|lagged_interf_worry        |  0.28| 0.058|  0.167| 0.394|   |  0.26| 0.061|  0.143| 0.382|
+|lagged_worry_outcome_error | -0.08| 0.044| -0.169| 0.005|   | -0.08| 0.046| -0.172| 0.009|
+|lagged_pain_trend_3d       | -0.08| 0.076| -0.233| 0.064|   | -0.11| 0.081| -0.269| 0.048|
+|lagged_mood_trend_3d       |  0.18| 0.107| -0.031| 0.390|   |  0.19| 0.118| -0.040| 0.425|
+|lagged_stress_trend_3d     |  0.19| 0.071|  0.051| 0.329|   |  0.20| 0.076|  0.047| 0.345|
+|day_count                  |  0.01| 0.009| -0.009| 0.024|   |  0.00| 0.010| -0.015| 0.022|
+|Age_c                      | -0.01| 0.033| -0.072| 0.057|   | -0.01| 0.031| -0.067| 0.053|
+
+The pooled fixed‑effect estimates from the analysis model were highly similar across the two imputation strategies (See table above). For all parameters, point estimates, standard errors, and confidence intervals overlapped closely. In particular, the lagged morning interference coefficient remained positive and of comparable magnitude in both models (Model A: 0.28, 95% CI [0.17, 0.39]; Model B: 0.26, 95% CI [0.14, 0.38]), and the pattern of results for the lagged symptom trends, day count, and age was essentially unchanged.The maximum difference in point estimates across any parameter was 0.03 (lagged pain trend), 
+
+representing <5% relative change. Considering these findings, our longitudinal inferences are appear robust to reasonable variation in the imputation model for morning worry nd we therefore selected the more parsimonious and numerically stable imputation model without the lagged term as our primary specification.
