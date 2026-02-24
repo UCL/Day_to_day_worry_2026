@@ -1,0 +1,22 @@
+# R project files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Data files - never upload participant data
+Data/
+*.csv
+*.xlsx
+*.sav
+*.rds
+*.RDS
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temp files
+*~
+*.tmp
