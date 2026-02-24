@@ -19,13 +19,7 @@ The `docs/` folder contains six supplementary documents:
 
 ## Reproducibility
 
-All analyses were conducted in R. Source code is in `Code/`. To rebuild all supplementary documents:
-
-```r
-source("build_supplementary.R")
-```
-
-Note: raw data are not included in this repository.
+All analyses were conducted in R. Source code is in `Code/`. Note: raw data are not included in this repository.
 
 ## Funding
 
