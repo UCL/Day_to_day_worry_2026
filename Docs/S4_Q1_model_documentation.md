@@ -4,6 +4,19 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [Summary & Logic](#summary--logic)
+- [Q1: LMM for pred./Exp. coupling](#q1-lmm-for-predexp-coupling)
+  - [DAG](#dag)
+  - [Model Specifications and
+    Comparisons](#model-specifications-and-comparisons)
+    - [Sensitivity Analysis for Lagged Effect Of
+      Interference](#sensitivity-analysis-for-lagged-effect-of-interference)
+  - [Multicollinearity (pooled)](#multicollinearity-pooled)
+  - [Pooled Parameter Estimates](#pooled-parameter-estimates)
+  - [Variance explained (pooled)](#variance-explained-pooled)
+    - [Additional Diagnostics](#additional-diagnostics)
+  - [Coefficient Visualization](#coefficient-visualization)
+
 # Summary & Logic
 
 This document presents the statistical models testing Question 1:
@@ -33,7 +46,7 @@ background covariates. The random intercept structure is not shown in
 this DAG but it is included in the model allowing these relationships to
 vary around person-specific baselines.
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 The baseline model in the DAG tests morning worry about interference
 (interf_worry) as a significant predictor of evening interference, with
@@ -371,7 +384,7 @@ multicollinearity
 check_model(mod_pain_coupling_0_one_sample, check = c("all"))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 #### Autocorrelation
 
@@ -389,7 +402,7 @@ residuals <- resid(mod_pain_coupling_0_one_sample)
 acf(residuals, main = "ACF of Model Residuals (Imputation 1)")
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 # PACF estimates the partial autocorrelations. Same as acf but pacf controls for 
@@ -417,7 +430,7 @@ ggplot(model_data_clean, aes(x = day_count, y = residuals, group = alias)) +
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
+![](S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
 
 ``` r
 ############## END AUTOCORRELATION #####################
@@ -483,4 +496,4 @@ ggplot(coef_data, aes(x = estimate, y = term_label, color = significant)) +
   )
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](S4_Q1_model_documentation_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->

@@ -4,6 +4,16 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [SUMMARY & LOGIC:](#summary--logic)
+- [Missingness Rate](#missingness-rate)
+- [Summary Table](#summary-table)
+  - [MAR Assumption Tests](#mar-assumption-tests)
+    - [Missingness ~ time](#missingness--time)
+    - [Missingness ~ Participant?](#missingness--participant)
+    - [Missingness Co-occurrence?](#missingness-co-occurrence)
+    - [Outcome Missing ~ Predictors](#outcome-missing--predictors)
+  - [MAR-based sensitivity analysis](#mar-based-sensitivity-analysis)
+
 # SUMMARY & LOGIC:
 
 This code tests whether missing data meets Missing At Random (MAR)

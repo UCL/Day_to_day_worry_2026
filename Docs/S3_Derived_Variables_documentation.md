@@ -4,6 +4,13 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [Summary & Logic](#summary--logic)
+  - [Imputation variance across key
+    variables](#imputation-variance-across-key-variables)
+  - [Correlations](#correlations)
+    - [Within-person Correlations](#within-person-correlations)
+    - [Between-person Correlations](#between-person-correlations)
+
 # Summary & Logic
 
 This documentation describe the construction of all derived variables
@@ -242,7 +249,7 @@ corrplot(cor_q1, method = "number", type = "upper",
          mar = c(0,0,2,0))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 # Q2
@@ -252,7 +259,7 @@ corrplot(cor_q2, method = "number", type = "upper",
          mar = c(0,0,2,0))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
 
 ### Between-person Correlations
 
@@ -300,4 +307,4 @@ corrplot(cor_between, method = "number", type = "upper",
          mar = c(0,0,2,0))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](S3_Derived_Variables_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->

@@ -4,6 +4,14 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [Summary & Logic](#summary--logic)
+- [Imputation](#imputation)
+  - [imputation 1](#imputation-1)
+  - [imputation 2](#imputation-2)
+  - [IMP_1 Convergence plots](#imp_1-convergence-plots)
+    - [Additional MAR Explore](#additional-mar-explore)
+  - [IMP_2 convergence](#imp_2-convergence)
+
 # Summary & Logic
 
 This document specifies the multiple imputation models used to handle
@@ -121,7 +129,7 @@ requires:
 
 To extend this diagnostic we load the imputation with extendeded 20
 iteration
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
+![](S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->![](S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 Trace plots show random intermingling with no trends/divergence, and
 stabilization by iterations 4-6
@@ -138,7 +146,7 @@ In addition we examine ([van Buuren & Groothuis-Oudshoorn
 densityplot(imp_1_ext, ~ interf_worry + evening_interference + morning_pain + morning_mood + morning_stress)
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 Density plots showed imputed values (red) overlapping observed data and
 preserving skewness in pain interference
@@ -147,7 +155,7 @@ preserving skewness in pain interference
 bwplot(imp_1, interf_worry + evening_interference + morning_pain + morning_mood + morning_stress ~ .imp, pch = 20, cex = 1.2)
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 bwplot across all 28 imputations confirmed that imputed values fell
 within plausible ranges for both interf_worry and evening_interference
@@ -198,7 +206,7 @@ xyplot(imp_1, evening_interference ~ ps | as.factor(.imp),
        col = mdc(1:2))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](S2_Mice_Imputation_documentation_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ## IMP_2 convergence
 

@@ -4,6 +4,22 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [Summary & Logic](#summary--logic)
+- [Q2: Error-Driven Learning Model](#q2-error-driven-learning-model)
+  - [DAG](#dag)
+  - [Model Specifications and
+    Comparisons](#model-specifications-and-comparisons)
+    - [Model Selection: Trends vs. Lagged Current
+      States](#model-selection-trends-vs-lagged-current-states)
+    - [Extended Model: Adding Recent
+      Deviations](#extended-model-adding-recent-deviations)
+    - [MAR-based sensitivity analysis](#mar-based-sensitivity-analysis)
+  - [Multicollinearity (pooled)](#multicollinearity-pooled)
+  - [Pooled Parameter Estimates](#pooled-parameter-estimates)
+  - [Variance Explained (Pooled)](#variance-explained-pooled)
+    - [Additional Diagnostics](#additional-diagnostics)
+  - [Coefficient Visualization](#coefficient-visualization)
+
 # Summary & Logic
 
 This document presents the statistical models testing Question 2:
@@ -126,7 +142,7 @@ ggdag_Q2<-ggdag_status(dag_Q2, text = FALSE, use_labels = "label") +
 ggdag_Q2
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 The baseline model in the DAG tests
 
@@ -327,14 +343,22 @@ check_collinearity(model_learning_0_pooled$analyses[[1]])
     ## 
     ## Low Correlation
     ## 
-    ##                        Term  VIF   VIF 95% CI adj. VIF Tolerance Tolerance 95% CI
-    ##         lagged_interf_worry 1.40 [1.27, 1.59]     1.18      0.72     [0.63, 0.79]
-    ##  lagged_worry_outcome_error 1.36 [1.24, 1.55]     1.17      0.73     [0.65, 0.81]
-    ##        lagged_pain_trend_3d 1.31 [1.19, 1.48]     1.14      0.77     [0.67, 0.84]
-    ##        lagged_mood_trend_3d 1.34 [1.22, 1.53]     1.16      0.74     [0.65, 0.82]
-    ##      lagged_stress_trend_3d 1.29 [1.18, 1.47]     1.14      0.77     [0.68, 0.85]
-    ##                   day_count 1.02 [1.00, 3.07]     1.01      0.98     [0.33, 1.00]
-    ##                       Age_c 1.09 [1.03, 1.28]     1.05      0.91     [0.78, 0.97]
+    ##                        Term  VIF   VIF 95% CI adj. VIF Tolerance
+    ##         lagged_interf_worry 1.40 [1.27, 1.59]     1.18      0.72
+    ##  lagged_worry_outcome_error 1.36 [1.24, 1.55]     1.17      0.73
+    ##        lagged_pain_trend_3d 1.31 [1.19, 1.48]     1.14      0.77
+    ##        lagged_mood_trend_3d 1.34 [1.22, 1.53]     1.16      0.74
+    ##      lagged_stress_trend_3d 1.29 [1.18, 1.47]     1.14      0.77
+    ##                   day_count 1.02 [1.00, 3.07]     1.01      0.98
+    ##                       Age_c 1.09 [1.03, 1.28]     1.05      0.91
+    ##  Tolerance 95% CI
+    ##      [0.63, 0.79]
+    ##      [0.65, 0.81]
+    ##      [0.67, 0.84]
+    ##      [0.65, 0.82]
+    ##      [0.68, 0.85]
+    ##      [0.33, 1.00]
+    ##      [0.78, 0.97]
 
 ## Pooled Parameter Estimates
 
@@ -449,7 +473,7 @@ multicollinearity
 check_model(model_learning_0_one_sample, check = c("all"))
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 #### Autocorrelation
 
@@ -467,7 +491,7 @@ residuals <- resid(model_learning_0_one_sample)
 acf(residuals, main = "ACF of Model Residuals (Imputation 1)")
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 # PACF estimates the partial autocorrelations. Same as acf but pacf controls for 
@@ -495,7 +519,7 @@ ggplot(model_data_clean, aes(x = day_count, y = residuals, group = alias)) +
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
+![](S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
 
 ``` r
 ############## END AUTOCORRELATION #####################
@@ -552,4 +576,4 @@ ggplot(coef_data, aes(x = estimate, y = term_label, color = significant)) +
   )
 ```
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](S5_Q2_model_documentation_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->

@@ -5,6 +5,21 @@ Diego Vitali, Raffaele Buono, Tao Bi, Tony Pickering, Chris Eccleston,
 Edmund Keogh, Nadia Bianchi-Berthouze, Amanda C de C Williams
 2026-02-07
 
+- [Summary & Logic](#summary--logic)
+- [Methods](#methods)
+  - [Model Fitted to Each Simulated
+    Dataset](#model-fitted-to-each-simulated-dataset)
+  - [Metrics](#metrics)
+  - [Data-Generating Function](#data-generating-function)
+  - [Single-Replication Function](#single-replication-function)
+  - [Main Simulation Loop](#main-simulation-loop)
+    - [Parameter Recovery (Bias)](#parameter-recovery-bias)
+    - [Standard Error Calibration](#standard-error-calibration)
+    - [Full Results Table](#full-results-table)
+  - [power simulation chart](#power-simulation-chart)
+    - [Power for the Learning
+      Parameter](#power-for-the-learning-parameter)
+
 # Summary & Logic
 
 This supplementary material reports Monte Carlo simulations used to
@@ -377,7 +392,7 @@ Monte Carlo simulation results: bias, SE calibration, and power across
 
 ## power simulation chart
 
-![](C:/Users/d.vitali/Desktop/Github/EMA_Pain_Supl_2026/Docs/S6_Simulation_study_documentation_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](S6_Simulation_study_documentation_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ### Power for the Learning Parameter
 
