@@ -1,6 +1,6 @@
 # Supplementary material
 
-Supplementary material and full code documentation for the following paper (under review):
+Supplementary material and full code documentation for the following paper (ACCEPTED 2026):
 
 * Vitali, D., Buono, R., Bi, T., Pickering, T., Eccleston, C., Keogh, E., Bianchi-Berthouze, N., & Williams, A. C. de C. (2026). *Day to day worry about interference from chronic pain: an ecological momentary assessment study.*
 
